@@ -1,81 +1,46 @@
 // Create web server
-// Start server: node comments.js
-// Test in browser: http://localhost:3000/comments?postId=1
+// 1. Create a web server
+// 2. Set up a route handler
+// 3. Listen for incoming requests
+// 4. Process incoming requests
+// 5. Return a response
+// 6. Listen on a port
+// 7. Use the node package manager to install dependencies
+// 8. Use the node package manager to run the server
 
-// Import modules
-var http = require('http');
-var url = require('url');
-var fs = require('fs');
-var qs = require('querystring');
+const express = require('express');
+const bodyParser = require('body-parser');
+const { randomBytes } = require('crypto'); // randomBytes is a function
+const cors = require('cors');
 
-// Create server
-http.createServer(function (req, res) {
-    // Get query string
-    var q = url.parse(req.url, true);
-    var qdata = q.query;
+const app = express();
+app.use(bodyParser.json());
+app.use(cors());
 
-    // Get post id
-    var postId = qdata.postId;
+const commentsByPostId = {};
 
-    // Check if post id is defined
-    if (postId) {
-        // Read comments file
-        fs.readFile('comments.json', function (err, data) {
-            if (err) {
-                res.writeHead(404, { 'Content-Type': 'text/html' });
-                return res.end('404 Not Found');
-            }
+// GET request to /posts/:id/comments
+app.get('/posts/:id/comments', (req, res) => {
+  // res.send(Object.values(commentsByPostId));
+  res.send(commentsByPostId[req.params.id] || []);
+});
 
-            // Parse comments file
-            var comments = JSON.parse(data);
+// POST request to /posts/:id/comments
+app.post('/posts/:id/comments', (req, res) => {
+  // Generate a random id for the comment
+  const commentId = randomBytes(4).toString('hex');
+  // Get the content of the comment from the request body
+  const { content } = req.body;
+  // Get the list of comments for the post
+  const comments = commentsByPostId[req.params.id] || [];
+  // Add the new comment to the list of comments
+  comments.push({ id: commentId, content });
+  // Save the list of comments to the post
+  commentsByPostId[req.params.id] = comments;
+  // Send the new comment back to the requester
+  res.status(201).send(comments);
+});
 
-            // Filter comments by post id
-            comments = comments.filter(function (comment) {
-                return comment.postId == postId;
-            });
-
-            // Write response
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.write(JSON.stringify(comments));
-            return res.end();
-        });
-    } else {
-        // Get post data
-        var body = '';
-        req.on('data', function (data) {
-            body += data;
-        });
-
-        // Process post data
-        req.on('end', function () {
-            // Parse post data
-            var post = qs.parse(body);
-
-            // Read comments file
-            fs.readFile('comments.json', function (err, data) {
-                if (err) {
-                    res.writeHead(404, { 'Content-Type': 'text/html' });
-                    return res.end('404 Not Found');
-                }
-
-                // Parse comments file
-                var comments = JSON.parse(data);
-
-                // Add new comment
-                comments.push({
-                    id: comments.length + 1,
-                    postId: post.postId,
-                    name: post.name,
-                    email: post.email,
-                    body: post.body
-                });
-
-                // Write comments file
-                fs.writeFile('comments.json', JSON.stringify(comments), function (err) {
-                    if (err) {
-                        res.writeHead(500, { 'Content-Type': 'text/html' });
-                        return res.end('500 Internal Server Error');
-                    }
-
-                    // Write response
-                    res.writeHead(200
+app.listen(4001, () => {
+  console.log('Listening on 4001');
+});
